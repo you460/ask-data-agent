@@ -1,0 +1,134 @@
+{
+  "version": "2.0",
+  "note": "v2 留出集：v1 已参与多轮修复，本题集重新依据表结构与业务含义编写；冻结后只评测一次，不再根据结果改题或调参。expected_behavior=clarify 的题不计入准确率。",
+  "items": [
+    {
+      "id": "V201",
+      "skill": "enum_filter",
+      "question": "最新一期账户状态正常的客户占全部客户多少比例",
+      "standard_sql": "select count(distinct case when cust_status='2000001' then pty_id end)*1.0/count(distinct pty_id) as ratio from ads_cust_info_d where data_dt='20260531'",
+      "expected_behavior": "answer",
+      "note": "账户状态映射到字典代码，分母为最新快照全部客户"
+    },
+    {
+      "id": "V202",
+      "skill": "colloquial_ranking",
+      "question": "哪个城市的客户最多，有多少人",
+      "standard_sql": "select city_name,count(distinct pty_id) as cust_cnt from ads_cust_info_d where data_dt='20260531' group by city_name order by cust_cnt desc limit 1",
+      "expected_behavior": "answer",
+      "note": "口语化排名，要求城市和客户数两列"
+    },
+    {
+      "id": "V203",
+      "skill": "conditional_ratio",
+      "question": "最新一期男性客户里，钻石卡客户占比是多少",
+      "standard_sql": "select count(distinct case when cust_lvl_cd='1000001' then pty_id end)*1.0/count(distinct pty_id) as ratio from ads_cust_info_d where data_dt='20260531' and gender_cd='5000002'",
+      "expected_behavior": "answer",
+      "note": "分母只包含男性客户，而不是全部客户"
+    },
+    {
+      "id": "V204",
+      "skill": "multi_table_join",
+      "question": "2026年3月底持有开放式基金的硕士客户有多少",
+      "standard_sql": "select count(distinct h.pty_id) as cust_cnt from dwd_cust_hold_d h join dim_product p on h.prdt_id=p.prdt_id join ads_cust_info_d c on h.pty_id=c.pty_id and c.data_dt='20260531' where h.data_dt='20260331' and p.up_prdt_type_name='开放式基金' and c.edu_cd='6000003'",
+      "expected_behavior": "answer",
+      "note": "持仓、产品分类、客户学历三表关联"
+    },
+    {
+      "id": "V205",
+      "skill": "customer_level_anti_condition",
+      "question": "2026年一季度只买过、没有卖过产品的客户有多少",
+      "standard_sql": "with t as (select pty_id,sum(coalesce(buy_amt,0)) as buy_total,sum(coalesce(sell_amt,0)) as sell_total from dwd_cust_tran_d where data_dt between '20260101' and '20260331' group by pty_id) select count(*) as cust_cnt from t where buy_total>0 and sell_total=0",
+      "expected_behavior": "answer",
+      "note": "必须先按客户汇总整个季度，不能按单行交易判断"
+    },
+    {
+      "id": "V206",
+      "skill": "time_group",
+      "question": "2026年一季度各月发生交易的客户数分别是多少",
+      "standard_sql": "select substr(data_dt,1,6) as mon,count(distinct pty_id) as cust_cnt from dwd_cust_tran_d where data_dt between '20260101' and '20260331' group by substr(data_dt,1,6) order by mon",
+      "expected_behavior": "answer",
+      "note": "按月统计去重客户数，跨月不去重"
+    },
+    {
+      "id": "V207",
+      "skill": "window",
+      "question": "每个客户等级中，2026年季末总资产最高的客户是谁",
+      "standard_sql": "with ranked as (select c.cust_lvl_cd,c.pty_id,coalesce(a.nm_tot_aset,0)+coalesce(a.fc_pur_aset,0) as total_aset,row_number() over(partition by c.cust_lvl_cd order by coalesce(a.nm_tot_aset,0)+coalesce(a.fc_pur_aset,0) desc,c.pty_id) as rn from ads_cust_info_d c join dws_cust_aset_d a on c.pty_id=a.pty_id and a.data_dt='20260331' where c.data_dt='20260531') select cust_lvl_cd,pty_id,total_aset from ranked where rn=1 order by cust_lvl_cd",
+      "expected_behavior": "answer",
+      "note": "分组 Top1，使用普通账户总资产加信用账户净资产"
+    },
+    {
+      "id": "V208",
+      "skill": "secondary_aggregation",
+      "question": "2026年季末客户平均总资产超过100万的营业部有几个",
+      "standard_sql": "select count(*) as branch_cnt from (select b.org_id,avg(coalesce(a.nm_tot_aset,0)+coalesce(a.fc_pur_aset,0)) as avg_aset from ads_cust_info_d c join dws_cust_aset_d a on c.pty_id=a.pty_id and a.data_dt='20260331' join dim_branch b on c.org_id=b.org_id and b.data_dt='20260531' where c.data_dt='20260531' group by b.org_id having avg(coalesce(a.nm_tot_aset,0)+coalesce(a.fc_pur_aset,0))>1000000) t",
+      "expected_behavior": "answer",
+      "note": "先按营业部计算客户平均资产，再统计满足条件的营业部数量"
+    },
+    {
+      "id": "V209",
+      "skill": "fund_flow",
+      "question": "2026年一季度资金净流入超过10万的客户有多少",
+      "standard_sql": "select count(*) as cust_cnt from (select pty_id,sum(coalesce(cash_in,0)+coalesce(tran_in,0)+coalesce(assign_in,0)-coalesce(cash_out,0)-coalesce(tran_out,0)-coalesce(assign_out,0)) as net_inflow from dws_cust_fin_d where data_dt between '20260101' and '20260331' group by pty_id having sum(coalesce(cash_in,0)+coalesce(tran_in,0)+coalesce(assign_in,0)-coalesce(cash_out,0)-coalesce(tran_out,0)-coalesce(assign_out,0))>100000) t",
+      "expected_behavior": "answer",
+      "note": "净流入为三类流入减三类流出，先按客户聚合"
+    },
+    {
+      "id": "V210",
+      "skill": "fund_flow_join",
+      "question": "2026年一季度各分公司的资金净流入合计是多少",
+      "standard_sql": "select b.up_org_name,sum(coalesce(f.cash_in,0)+coalesce(f.tran_in,0)+coalesce(f.assign_in,0)-coalesce(f.cash_out,0)-coalesce(f.tran_out,0)-coalesce(f.assign_out,0)) as net_inflow from dws_cust_fin_d f join ads_cust_info_d c on f.pty_id=c.pty_id and c.data_dt='20260531' join dim_branch b on c.org_id=b.org_id and b.data_dt='20260531' where f.data_dt between '20260101' and '20260331' group by b.up_org_name order by net_inflow desc",
+      "expected_behavior": "answer",
+      "note": "资金流水关联客户最新所属营业部，再映射到分公司"
+    },
+    {
+      "id": "V211",
+      "skill": "empty_result",
+      "question": "2025年四季度客户资金流入总额是多少",
+      "standard_sql": "select coalesce(sum(coalesce(cash_in,0)+coalesce(tran_in,0)+coalesce(assign_in,0)),0) as total_inflow from dws_cust_fin_d where data_dt between '20251001' and '20251231'",
+      "expected_behavior": "empty_ok",
+      "note": "数据库没有 2025 年数据，应返回 0 而不是编造数值"
+    },
+    {
+      "id": "V212",
+      "skill": "ambiguity",
+      "question": "资产比较高的客户有多少",
+      "standard_sql": "select count(*) as cust_cnt from dws_cust_aset_d where data_dt='20260331' and coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0)>1000000",
+      "expected_behavior": "clarify",
+      "note": "比较高缺少阈值，理想行为是询问资产口径和阈值；基准仅作执行校验，不计入准确率"
+    },
+    {
+      "id": "V213",
+      "skill": "zero_vs_null",
+      "question": "2026年季末信用账户净资产为0、但普通账户现金余额不为0的客户有多少",
+      "standard_sql": "select count(*) as cust_cnt from dws_cust_aset_d where data_dt='20260331' and coalesce(fc_pur_aset,0)=0 and coalesce(nm_bal,0)>0",
+      "expected_behavior": "answer",
+      "note": "同时处理两个账户字段的 NULL，并区分净资产为0与现金余额不为0"
+    },
+    {
+      "id": "V214",
+      "skill": "product_enum",
+      "question": "2026年3月底持有ETF或LOF的客户有多少",
+      "standard_sql": "select count(distinct h.pty_id) as cust_cnt from dwd_cust_hold_d h join dim_product p on h.prdt_id=p.prdt_id where h.data_dt='20260331' and p.prdt_type_name in ('ETF','LOF')",
+      "expected_behavior": "answer",
+      "note": "产品二级分类枚举值过滤，并按客户去重"
+    },
+    {
+      "id": "V215",
+      "skill": "anti_join",
+      "question": "2026年3月底有持仓但一季度没有任何交易的客户有多少",
+      "standard_sql": "select count(*) as cust_cnt from (select distinct pty_id from dwd_cust_hold_d where data_dt='20260331') h where not exists (select 1 from dwd_cust_tran_d t where t.pty_id=h.pty_id and t.data_dt between '20260101' and '20260331')",
+      "expected_behavior": "answer",
+      "note": "持仓与交易采用不同时间口径，反连接识别无交易客户"
+    },
+    {
+      "id": "V216",
+      "skill": "ratio_multi_table",
+      "question": "2026年一季度有交易的客户中，季末持仓市值超过50万的客户占比是多少",
+      "standard_sql": "with active as (select pty_id from dwd_cust_tran_d where data_dt between '20260101' and '20260331' group by pty_id having sum(coalesce(buy_amt,0)+coalesce(sell_amt,0))>0), hold as (select pty_id,sum(coalesce(mkt_val,0)) as total_mkt_val from dwd_cust_hold_d where data_dt='20260331' group by pty_id) select count(h.pty_id)*1.0/count(a.pty_id) as ratio from active a left join hold h on a.pty_id=h.pty_id and h.total_mkt_val>500000",
+      "expected_behavior": "answer",
+      "note": "分母为季度有交易客户，分子为其中季末持仓市值超过50万的客户"
+    }
+  ]
+}

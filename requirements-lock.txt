@@ -1,0 +1,5 @@
+# 用于复现已记录评测环境的直接依赖版本
+psycopg2-binary==2.9.9
+sqlglot==30.17.0
+gradio==6.26.0
+pandas==3.0.1

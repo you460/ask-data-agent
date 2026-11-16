@@ -1,0 +1,28 @@
+{
+  "frozen_at": "2026-11-15T09:22:40+00:00",
+  "spec_file": "heldout_spec.json",
+  "spec_sha256": "cfe419446afd61571b0709d55f6cf55de8b6334afde1468a22315ad5a3e40683",
+  "n_items": 16,
+  "skills": [
+    "ambiguity",
+    "anti_join",
+    "colloquial",
+    "empty_result",
+    "enum_code",
+    "multi_table_join",
+    "null_handling",
+    "ratio",
+    "secondary_aggregation",
+    "time_group",
+    "window"
+  ],
+  "prompt_sha256": "811c0fe85a3d8d87b5e652052721cee2431cc2f612c3110e7642b69692508aef",
+  "metadata_sha256": "e39c21a9032ccba0bf2e5e1f1a9fb604b21a13cd360bc17ae4450d773992a3fc",
+  "question_bank_sha256": {
+    "test_questions.json": "dbb4ed13bff9300381067bcdd4fdcf08278e50debf9f399f5f04bbca44ba54a4",
+    "generalization_questions.json": "8bffede7bd9f46b825fd735cabf3977b31bb4b627aede40b79554f014ef61207"
+  },
+  "python": "3.10.11",
+  "platform": "Windows-10-10.0.26300-SP0",
+  "rule": "冻结后禁止修改 spec；改动会被 --verify 检出；调参后只能新建 v2"
+}
